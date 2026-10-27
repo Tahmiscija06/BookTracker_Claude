@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 
 from flask import (Flask, flash, g, redirect, render_template, request,
                    session, url_for)
-from markupsafe import Markup
+from markupsafe import Markup, escape
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import library
@@ -33,30 +33,57 @@ KEY_PATH = os.path.join(BASE_DIR, "secret.key")
 
 # Na Vercelu postoji varijabla VERCEL; tamo se datoteke ne mogu trajno spremati.
 IS_VERCEL = bool(os.environ.get("VERCEL"))
-DATABASE_URL = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL") or ""
+CONFIG_ERROR = ""  # ako nešto nije podešeno, stranica to jasno ispiše (umjesto rušenja)
+
+
+def find_database_url():
+    """Traži adresu Postgres baze. Vercel je često dodaje s prefiksom
+    (npr. STORAGE_DATABASE_URL), pa tražimo i takva imena."""
+    for name in ("DATABASE_URL", "POSTGRES_URL"):
+        if os.environ.get(name):
+            return os.environ[name]
+    for suffix in ("_DATABASE_URL", "_POSTGRES_URL"):
+        for name, value in sorted(os.environ.items()):
+            if name.endswith(suffix) and value.startswith(("postgres://", "postgresql://")):
+                return value
+    return ""
+
+
+def related_env_names():
+    """Imena (ne vrijednosti!) varijabli koje liče na podešavanja baze."""
+    keys = ("DATABASE", "POSTGRES", "NEON", "STORAGE", "PG", "SECRET")
+    return sorted(n for n in os.environ if any(k in n.upper() for k in keys))
+
+
+DATABASE_URL = find_database_url()
 USE_PG = bool(DATABASE_URL)
+INTEGRITY_ERRORS = (sqlite3.IntegrityError,)
 
 if USE_PG:
-    import psycopg
-    from psycopg.rows import dict_row
-    INTEGRITY_ERRORS = (psycopg.IntegrityError,)
-else:
-    INTEGRITY_ERRORS = (sqlite3.IntegrityError,)
-    if IS_VERCEL:
-        raise RuntimeError(
-            "Na Vercelu je potrebna baza podataka: u Project Settings -> "
-            "Environment Variables postavite DATABASE_URL (vidi upute).")
+    try:
+        import psycopg
+        from psycopg.rows import dict_row
+        INTEGRITY_ERRORS = (psycopg.IntegrityError,)
+    except Exception as exc:
+        INTEGRITY_ERRORS = ()
+        CONFIG_ERROR = f"Ne mogu učitati dodatak za Postgres (psycopg): {type(exc).__name__}: {exc}"
+elif IS_VERCEL:
+    CONFIG_ERROR = ("Baza podataka nije povezana. Nijedna varijabla okruženja za Postgres "
+                    "(DATABASE_URL, POSTGRES_URL ili s prefiksom, npr. STORAGE_DATABASE_URL) "
+                    "nije pronađena.")
 
 
 def load_secret_key():
     """Tajni ključ potpisuje prijave (kolačiće).
     Na internetu ga zadajemo varijablom SECRET_KEY, a lokalno se pravi jednom
     i pamti u datoteci, pa prijave ostaju važeće i nakon ponovnog pokretanja."""
+    global CONFIG_ERROR
     env_key = os.environ.get("SECRET_KEY")
     if env_key:
         return env_key
     if IS_VERCEL:
-        raise RuntimeError("Postavite varijablu okruženja SECRET_KEY (vidi upute).")
+        CONFIG_ERROR = CONFIG_ERROR or ("Varijabla okruženja SECRET_KEY nije postavljena.")
+        return secrets.token_hex(32)  # privremeni ključ, aplikacija ionako ne radi
     if not os.path.exists(KEY_PATH):
         with open(KEY_PATH, "w") as f:
             f.write(secrets.token_hex(32))
@@ -80,7 +107,8 @@ class PgConnection:
     (upiti pišu ? umjesto %s, a redovi se čitaju po imenu kolone)."""
 
     def __init__(self, url):
-        self.conn = psycopg.connect(url, row_factory=dict_row, connect_timeout=10)
+        self.conn = psycopg.connect(url, row_factory=dict_row, connect_timeout=10,
+                                    prepare_threshold=None)
 
     def execute(self, sql, params=()):
         return self.conn.execute(sql.replace("?", "%s"), params)
@@ -149,7 +177,8 @@ PG_SCHEMA = [
 
 def init_db():
     if USE_PG:
-        conn = psycopg.connect(DATABASE_URL, autocommit=True, connect_timeout=10)
+        conn = psycopg.connect(DATABASE_URL, autocommit=True, connect_timeout=10,
+                               prepare_threshold=None)
         try:
             for stmt in PG_SCHEMA:
                 conn.execute(stmt)
@@ -215,7 +244,16 @@ def csrf_input():
 def before_each_request():
     if request.endpoint == "static":
         return None
-    ensure_db_ready()
+    if CONFIG_ERROR:
+        return problem_page(CONFIG_ERROR, show_env=True)
+    try:
+        ensure_db_ready()
+    except Exception as exc:
+        app.logger.exception("Greška pri pripremi baze")
+        return problem_page("Ne mogu se spojiti s bazom podataka ("
+                            + type(exc).__name__ + "). Provjerite da je baza "
+                            "povezana s projektom i pokušajte ponovo; detalji su u "
+                            "Logs na Vercelu.", show_env=True)
     if request.method == "POST":
         sent = request.form.get("csrf_token", "")
         expected = session.get("csrf_token", "")
@@ -224,6 +262,22 @@ def before_each_request():
             return redirect(request.referrer if _is_own_url(request.referrer)
                             else url_for("login"))
     return None
+
+
+def problem_page(message, show_env=False):
+    """Jednostavna stranica s objašnjenjem kad aplikacija nije dobro podešena."""
+    names = ""
+    if show_env:
+        found = related_env_names()
+        names = ("<p>Pronađene varijable (samo imena): <code>"
+                 + (", ".join(str(escape(n)) for n in found) if found else "nijedna")
+                 + "</code></p>")
+    html = ("<!doctype html><meta charset='utf-8'><title>Book Tracker</title>"
+            "<body style='font-family:system-ui;max-width:640px;margin:40px auto;padding:0 16px'>"
+            "<h1>Aplikacija još nije potpuno podešena</h1>"
+            f"<p>{escape(message)}</p>{names}"
+            "<p>Provjerite Settings → Environment Variables na Vercelu, pa uradite Redeploy.</p>")
+    return html, 500
 
 
 def _is_own_url(url):
@@ -724,7 +778,8 @@ def suggestions():
 # ------------------------------------------------------------- start ----
 
 try:
-    ensure_db_ready()
+    if not CONFIG_ERROR:
+        ensure_db_ready()
 except Exception as exc:  # npr. baza trenutno nedostupna; pokušat ćemo ponovo
     print("Upozorenje: baza nije pripremljena:", exc)
 
