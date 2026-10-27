@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Prijava · Book Tracker{% endblock %}
+{% block content %}
+<section class="card auth">
+  <h1>Dobrodošli nazad</h1>
+  <p class="muted">Prijavite se da vidite svoje knjige.</p>
+  <form method="post">
+{{ csrf_input() }}
+    <label>Korisničko ime
+      <input type="text" name="username" autocomplete="username" required autofocus>
+    </label>
+    <label>Lozinka
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button class="btn" type="submit">Prijavi se</button>
+  </form>
+  <p class="muted">Nemate račun? <a href="{{ url_for('register') }}">Registrirajte se</a></p>
+</section>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Registracija · Book Tracker{% endblock %}
+{% block content %}
+<section class="card auth">
+  <h1>Napravite račun</h1>
+  <p class="muted">Besplatno je i traje manje od minute.</p>
+  <form method="post">
+{{ csrf_input() }}
+    <label>Korisničko ime
+      <input type="text" name="username" autocomplete="username" required autofocus>
+      <small>3 do 30 znakova: slova, brojevi, _ . -</small>
+    </label>
+    <label>Lozinka
+      <input type="password" name="password" autocomplete="new-password" required>
+      <small>Najmanje 6 znakova</small>
+    </label>
+    <label>Ponovite lozinku
+      <input type="password" name="password2" autocomplete="new-password" required>
+    </label>
+    <button class="btn" type="submit">Registriraj se</button>
+  </form>
+  <p class="muted">Već imate račun? <a href="{{ url_for('login') }}">Prijavite se</a></p>
+</section>
+{% endblock %}

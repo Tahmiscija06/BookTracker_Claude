@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import book_card, find_card %}
+{% block title %}Pretraga · Book Tracker{% endblock %}
+{% block content %}
+{% if not q %}
+<div class="card empty">
+  <h2>Pronađite knjigu</h2>
+  <p class="muted">Upišite naslov ili autora u polje iznad. Pretražujemo vašu listu i veliku internet biblioteku (Open Library) s naslovnicama.</p>
+  <p><a class="btn ghost" href="{{ url_for('add') }}">Ili dodajte ručno</a></p>
+</div>
+{% else %}
+<h1>Rezultati za „{{ q }}“</h1>
+
+{% if mine %}
+<h2 class="section">Na vašoj listi</h2>
+<div class="grid">{% for b in mine %}{{ book_card(b) }}{% endfor %}</div>
+{% endif %}
+
+<h2 class="section">Iz internet biblioteke</h2>
+{% if offline %}
+  <div class="flash error">Trenutno se ne mogu povezati s internet bibliotekom. Provjerite vezu s internetom i pokušajte ponovo za minut. Knjigu možete dodati i ručno.{% if error %}<br><small>Tehnički detalj: {{ error }}</small>{% endif %}</div>
+{% elif online %}
+  <p class="muted">Kliknite „Dodaj“ i odaberite status (želim čitati, čitam, pročitana).</p>
+  <div class="grid">{% for s in online %}{{ find_card(s) }}{% endfor %}</div>
+{% else %}
+  <div class="card empty"><p class="muted">Nema rezultata u internet biblioteci. Pokušajte drugi pravopis ili englesko ime naslova.</p></div>
+{% endif %}
+
+<p class="muted bottom-link">Ne nalazite knjigu? <a href="{{ url_for('add') }}">Dodajte je ručno</a>.</p>
+{% endif %}
+{% endblock %}

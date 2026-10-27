@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import cover %}
+{% block title %}{{ 'Uredi knjigu' if editing else 'Nova knjiga' }} · Book Tracker{% endblock %}
+{% block content %}
+<section class="card auth wide">
+  <h1>{{ 'Uredi knjigu' if editing else 'Dodaj knjigu' }}</h1>
+
+  {% if prefilled and not book.total_pages %}
+    <div class="flash">Podatke smo popunili iz biblioteke, ali broj stranica nismo pronašli. Upišite ga ručno.</div>
+  {% endif %}
+
+  <form method="post">
+{{ csrf_input() }}
+    {% if book.cover_url %}
+      <div class="cover-preview">{{ cover(book.title, book.cover_url) }}</div>
+    {% endif %}
+    <input type="hidden" name="cover_url" value="{{ book.cover_url }}">
+
+    <label>Naslov knjige
+      <input type="text" name="title" value="{{ book.title }}" required {{ 'autofocus' if not prefilled }} maxlength="200">
+    </label>
+    <label>Autor
+      <input type="text" name="author" value="{{ book.author }}" required maxlength="120">
+    </label>
+    <label>Žanr
+      <select name="genre">
+        {% for g in genres %}
+          <option value="{{ g }}" {{ 'selected' if g == book.genre }}>{{ g }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    {% if not editing %}
+    <label>Status
+      <select name="status" id="status">
+        <option value="want" {{ 'selected' if status == 'want' }}>Želim čitati (još nisam počeo/la)</option>
+        <option value="reading" {{ 'selected' if status == 'reading' }}>Trenutno čitam</option>
+        <option value="finished" {{ 'selected' if status == 'finished' }}>Pročitao/la sam je</option>
+      </select>
+    </label>
+    {% endif %}
+
+    <div class="row">
+      <label>Ukupno stranica
+        <input type="number" name="total_pages" value="{{ book.total_pages }}" min="1" max="20000" required {{ 'autofocus' if prefilled and not book.total_pages }}>
+      </label>
+      <label id="current-field">Pročitano stranica
+        <input type="number" name="current_page" value="{{ book.current_page }}" min="0" max="20000">
+      </label>
+    </div>
+    {% if editing %}
+      <p class="muted small-text">Postotak se računa sam. Ako ste knjigu završili, upišite isti broj kao ukupno stranica.</p>
+    {% endif %}
+
+    <div class="actions">
+      <button class="btn" type="submit">{{ 'Spremi promjene' if editing else 'Dodaj' }}</button>
+      <a class="btn ghost" href="{{ url_for('index') }}">Odustani</a>
+    </div>
+  </form>
+</section>
+
+{% if not editing %}
+<script>
+  // Polje "Pročitano stranica" je potrebno samo kad trenutno čitate knjigu.
+  (function () {
+    var s = document.getElementById('status'), f = document.getElementById('current-field');
+    function sync() { f.style.display = (s.value === 'reading') ? '' : 'none'; }
+    s.addEventListener('change', sync); sync();
+  })();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "_macros.html" import find_card %}
+{% block title %}Prijedlozi · Book Tracker{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Prijedlozi za čitanje</h1>
+</div>
+<p class="muted">
+  {% if has_books %}
+    Birano prema autorima i žanrovima knjiga koje čitate ili ste pročitali. Omiljene (★) imaju najveću težinu.
+  {% else %}
+    Dodajte nekoliko knjiga i označite omiljene, pa će prijedlozi biti prilagođeni vama. Do tada su ovo popularni naslovi.
+  {% endif %}
+</p>
+{% if not online %}
+  <div class="flash error">Nema veze s internet bibliotekom, pa prikazujem manju ugrađenu listu. Pokušajte ponovo za minut.{% if error %}<br><small>Tehnički detalj: {{ error }}</small>{% endif %}</div>
+{% endif %}
+
+<div class="grid">
+  {% for s in items %}{{ find_card(s) }}
+  {% else %}
+  <div class="card empty">
+    <h2>Nema više prijedloga</h2>
+    <p class="muted">Već imate sve knjige koje smo mogli predložiti.</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

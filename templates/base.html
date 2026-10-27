@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="bs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Book Tracker{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27%3E%3Ctext y=%27.9em%27 font-size=%2790%27%3E%F0%9F%93%9A%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap headrow">
+      <a class="brand" href="{{ url_for('index') }}">📚 Book Tracker</a>
+      {% if session.user_id %}
+      <form class="topsearch" method="get" action="{{ url_for('search') }}">
+        <input type="search" name="q" value="{{ q or '' }}" placeholder="Pronađi knjigu po naslovu ili autoru…" aria-label="Pretraga knjiga">
+        <button class="btn small" type="submit">Traži</button>
+      </form>
+      <div class="user">👤 {{ session.username }} · <a href="{{ url_for('logout') }}">Odjava</a></div>
+      {% endif %}
+    </div>
+    {% if session.user_id %}
+    <nav class="wrap mainnav">
+      <a class="{{ 'active' if request.endpoint == 'index' }}" href="{{ url_for('index') }}">Čitam <span class="count">{{ nav.reading }}</span></a>
+      <a class="{{ 'active' if request.endpoint == 'finished' }}" href="{{ url_for('finished') }}">Pročitane <span class="count">{{ nav.finished }}</span></a>
+      <a class="{{ 'active' if request.endpoint == 'want' }}" href="{{ url_for('want') }}">Želim čitati <span class="count">{{ nav.todo }}</span></a>
+      <a class="{{ 'active' if request.endpoint == 'favorites' }}" href="{{ url_for('favorites') }}">★ Omiljene <span class="count">{{ nav.favorites }}</span></a>
+      <a class="{{ 'active' if request.endpoint == 'suggestions' }}" href="{{ url_for('suggestions') }}">Prijedlozi</a>
+    </nav>
+    {% endif %}
+  </header>
+
+  <main class="wrap">
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

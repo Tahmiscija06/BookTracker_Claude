@@ -1,0 +1,7 @@
+# Ne objavljivati na GitHub: lične podatke i tajne
+booktracker.db
+secret.key
+.env
+.vercel
+__pycache__/
+*.pyc

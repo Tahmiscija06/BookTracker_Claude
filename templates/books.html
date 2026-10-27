@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_macros.html" import book_card %}
+{% set heading = {
+  'reading': 'Nastavi čitati',
+  'finished': 'Pročitane knjige',
+  'todo': 'Želim čitati',
+  'favorites': 'Omiljene knjige'}[kind] %}
+{% block title %}{{ heading }} · Book Tracker{% endblock %}
+{% block content %}
+<div class="head">
+  <div>
+    <h1>{{ heading }}</h1>
+    <p class="muted">
+      {% if kind == 'reading' %}Knjige koje trenutno čitate. Upišite stranicu do koje ste stigli.
+      {% elif kind == 'finished' %}Sve knjige koje ste završili.
+      {% elif kind == 'todo' %}Knjige koje ste spremili za kasnije. Kad upišete stranicu veću od 0, prelaze u „Čitam“.
+      {% else %}Knjige koje ste označili zvjezdicom.{% endif %}
+    </p>
+  </div>
+  <a class="btn" href="{{ url_for('add') }}">+ Dodaj ručno</a>
+</div>
+
+{% if books %}
+<div class="grid">
+  {% for b in books %}{{ book_card(b) }}{% endfor %}
+</div>
+{% else %}
+<div class="card empty">
+  {% if kind == 'reading' %}
+    <h2>Trenutno ništa ne čitate</h2>
+    <p class="muted">Pronađite knjigu pretragom iznad, ili odaberite nešto sa svoje liste.</p>
+    <p>
+      {% if nav.todo %}<a class="btn" href="{{ url_for('want') }}">Počni neku od {{ nav.todo }} sa liste</a>{% endif %}
+      <a class="btn ghost" href="{{ url_for('suggestions') }}">Pogledaj prijedloge</a>
+    </p>
+  {% elif kind == 'finished' %}
+    <h2>Još nemate pročitanih knjiga</h2>
+    <p class="muted">Kad završite knjigu (stranica = ukupno stranica), pojavit će se ovdje.</p>
+  {% elif kind == 'todo' %}
+    <h2>Lista je prazna</h2>
+    <p class="muted">Pronađite knjigu pretragom ili pogledajte prijedloge.</p>
+    <p><a class="btn" href="{{ url_for('suggestions') }}">Pogledaj prijedloge</a></p>
+  {% else %}
+    <h2>Nemate omiljenih knjiga</h2>
+    <p class="muted">Kliknite na zvjezdicu ☆ pored knjige da je dodate ovdje.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
